@@ -18,84 +18,145 @@ class Program
     static IConfiguration config = null;
     static void Main(string[] args)
     {
-
-        var builder = new ConfigurationBuilder();
-        builder.SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
-        config = builder.Build();
-        WriteLog("Data Transfer tool - Started @" + DateTime.Now);
-        SQLConnection = config["SQLConnectionString"].ToString();
-        foreach (var folderPath in config["FilePath"].ToString().Split(","))
+        try
         {
-            foreach (string file in Directory.EnumerateFiles(folderPath, "*.db"))
+            var builder = new ConfigurationBuilder();
+            builder.SetBasePath(Directory.GetCurrentDirectory())
+                   .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+            config = builder.Build();
+            WriteLog("Data Transfer tool - Started @" + DateTime.Now);
+            SQLConnection = config["SQLConnectionString"].ToString();
+
+            // File Archival
+            Archivefile();
+
+            foreach (var folderPath in config["FilePath"].ToString().Split(","))
             {
-                WriteLog("Reading APPLOG - Started @" + DateTime.Now + " From file" + file);
-                ReadData(file, "APPLOG");
-                WriteLog("Reading APPLOG - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Delete APPLOG - Started @" + DateTime.Now + " From file" + file);
-                DeleteData(file, "APPLOG");
-                WriteLog("Delete APPLOG - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Read KEYLOG - Started @" + DateTime.Now + " From file" + file);
-                ReadData(file, "KEYLOG");
-                WriteLog("Read KEYLOG - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Delete KEYLOG - Started @" + DateTime.Now + " From file" + file);
-                DeleteData(file, "KEYLOG");
-                WriteLog("Delete KEYLOG - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Read KEYLOG_RESULT - Started @" + DateTime.Now + " From file" + file);
-                ReadData(file, "KEYLOG_RESULT");
-                WriteLog("Read KEYLOG_RESULT - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Delete KEYLOG_RESULT - Started @" + DateTime.Now + " From file" + file);
-                DeleteData(file, "KEYLOG_RESULT");
-                WriteLog("Delete KEYLOG_RESULT - Completed @" + DateTime.Now + " From file" + file);
-                WriteLog("Read USERLOG - Started @" + DateTime.Now + " From file" + file);
 
-                ReadData(file, "USERLOG");
+                if (!Directory.Exists(folderPath))
+                {
+                    WriteLog(folderPath + " - Folder path is not exists");
+                    continue;
+                }
 
-                WriteLog("Read USERLOG - Completed @" + DateTime.Now + " From file" + file);
+                foreach (string file in Directory.EnumerateFiles(folderPath, "*.db"))
+                {
+                    // File Backup
+                    Backupfile(file);
 
-                WriteLog("Delete USERLOG - Started @" + DateTime.Now + " From file" + file);
-                DeleteData(file, "USERLOG");
-                WriteLog("Delete USERLOG - Completed @" + DateTime.Now + " From file" + file);
+                    //APPLOG Process Started
+                    WriteLog("Reading APPLOG - Started @" + DateTime.Now + " From file" + file);
+                    ReadData(file, "APPLOG");
+                    WriteLog("Reading APPLOG - Completed @" + DateTime.Now + " From file" + file);
+                    WriteLog("Delete APPLOG - Started @" + DateTime.Now + " From file" + file);
+                    DeleteData(file, "APPLOG");
+                    WriteLog("Delete APPLOG - Completed @" + DateTime.Now + " From file" + file);
 
-                WriteLog("Read WEBLOG - Started @" + DateTime.Now + " From file" + file);
+                    //KEYLOG Process Started
+                    WriteLog("Read KEYLOG - Started @" + DateTime.Now + " From file" + file);
+                    ReadData(file, "KEYLOG");
+                    WriteLog("Read KEYLOG - Completed @" + DateTime.Now + " From file" + file);
+                    WriteLog("Delete KEYLOG - Started @" + DateTime.Now + " From file" + file);
+                    DeleteData(file, "KEYLOG");
+                    WriteLog("Delete KEYLOG - Completed @" + DateTime.Now + " From file" + file);
 
-                ReadData(file, "WEBLOG");
-                WriteLog("Read WEBLOG - Completed @" + DateTime.Now + " From file" + file);
+                    //KEYLOG_RESULT Process Started
+                    WriteLog("Read KEYLOG_RESULT - Started @" + DateTime.Now + " From file" + file);
+                    ReadData(file, "KEYLOG_RESULT");
+                    WriteLog("Read KEYLOG_RESULT - Completed @" + DateTime.Now + " From file" + file);
+                    WriteLog("Delete KEYLOG_RESULT - Started @" + DateTime.Now + " From file" + file);
+                    DeleteData(file, "KEYLOG_RESULT");
+                    WriteLog("Delete KEYLOG_RESULT - Completed @" + DateTime.Now + " From file" + file);
 
-                WriteLog("Delete WEBLOG - Started @" + DateTime.Now + " From file" + file);
-                DeleteData(file, "WEBLOG");
-                WriteLog("Delete WEBLOG - Completed @" + DateTime.Now + " From file" + file);
+                    //USERLOG Process Started
+                    WriteLog("Read USERLOG - Started @" + DateTime.Now + " From file" + file);
+                    ReadData(file, "USERLOG");
+                    WriteLog("Read USERLOG - Completed @" + DateTime.Now + " From file" + file);
+                    WriteLog("Delete USERLOG - Started @" + DateTime.Now + " From file" + file);
+                    DeleteData(file, "USERLOG");
+                    WriteLog("Delete USERLOG - Completed @" + DateTime.Now + " From file" + file);
+
+                    //WEBLOG Process Started
+                    WriteLog("Read WEBLOG - Started @" + DateTime.Now + " From file" + file);
+                    ReadData(file, "WEBLOG");
+                    WriteLog("Read WEBLOG - Completed @" + DateTime.Now + " From file" + file);
+                    WriteLog("Delete WEBLOG - Started @" + DateTime.Now + " From file" + file);
+                    DeleteData(file, "WEBLOG");
+                    WriteLog("Delete WEBLOG - Completed @" + DateTime.Now + " From file" + file);
+                }
             }
+
+        }
+        catch (SqliteException ex)
+        {
+            WriteLog("Main Method " + ex.Message);
         }
 
     }
+    private static void Backupfile(string file)
+    {
+        try
+        {
+            string backupPath = config["BackupPath"].ToString();
+            string fileName = file.Substring(file.LastIndexOf("\\")).Replace(".db", string.Concat("_", DateTime.Now.ToString("ddMMyyyyhhmmss"), ".db"));
+            File.Copy(file, string.Concat(backupPath, fileName));
+        }
+        catch (SqliteException ex)
+        {
+            WriteLog("Backupfile " + ex.Message);
+        }
+    }
+    private static void Archivefile()
+    {
+        try
+        {
+            string backupPath = config["BackupPath"].ToString();
+            foreach (string file in Directory.EnumerateFiles(backupPath, "*.db"))
+            {
+                string fileDate = file.Substring(file.Length - 17).Replace(".db", "");
+                if (DateTime.ParseExact(fileDate, "ddMMyyyyhhmmss", null) < DateTime.Now.AddDays(-5))
+                    File.Delete(file);
+            }
+        }
+        catch (SqliteException ex)
+        {
+            WriteLog("Archivefile " + ex.Message);
+        }
+    }
     private static void ReadData(string Dbpath, string table)
     {
-        using (var connection = new SqliteConnection("Data Source=" + Dbpath))
+        try
         {
-            connection.Open();
-
-            SqliteCommand cmd = (SqliteCommand)SqliteFactory.Instance.CreateCommand();
-            cmd.CommandText = "SELECT * FROM " + table + ";";
-            cmd.Connection = connection;
-
-            DataTable dt;
-            WriteLog("Data Read Started from " + Dbpath + " and table is " + table + " ");
-            using (SqliteDataReader dr = cmd.ExecuteReader())
+            using (var connection = new SqliteConnection("Data Source=" + Dbpath))
             {
-                do
+                connection.Open();
+
+                SqliteCommand cmd = (SqliteCommand)SqliteFactory.Instance.CreateCommand();
+                cmd.CommandText = "SELECT * FROM " + table + ";";
+                cmd.Connection = connection;
+
+                DataTable dt;
+                WriteLog("Data Read Started from " + Dbpath + " and table is " + table + " ");
+                using (SqliteDataReader dr = cmd.ExecuteReader())
                 {
-                    dt = new DataTable();
-                    dt.BeginLoadData();
-                    dt.Load(dr);
-                    dt.EndLoadData();
+                    do
+                    {
+                        dt = new DataTable();
+                        dt.BeginLoadData();
+                        dt.Load(dr);
+                        dt.EndLoadData();
 
-                } while (!dr.IsClosed && dr.NextResult());
-                WriteLog("Data Read Completed from " + Dbpath + " and table is " + table + " -  Count is - " + dt.Rows.Count);
+                    } while (!dr.IsClosed && dr.NextResult());
+                    WriteLog("Data Read Completed from " + Dbpath + " and table is " + table + " -  Count is - " + dt.Rows.Count);
 
-                InsertDataSQL(dt, table);
+                    InsertDataSQL(dt, table);
+                }
             }
+        }
+        catch (SqliteException ex)
+        {
+            WriteLog(ex.Message);
         }
 
     }
